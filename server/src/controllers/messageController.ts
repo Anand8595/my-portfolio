@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import { Message } from "../models/Message";
 import { getDBStatus } from "../config/db";
 
@@ -24,30 +24,29 @@ const escapeHtml = (value: string) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
-// Sends a notification email to the portfolio owner.
-// Never throws: a failed email must not break the contact form.
+// Sends a notification email using Resend HTTP API (No SMTP / No Timeout on Render)
 const sendNotificationEmail = async (data: {
   name: string;
   email: string;
   subject: string;
   message: string;
 }) => {
-  const { EMAIL_USER, EMAIL_PASS, EMAIL_TO } = process.env;
+  const { RESEND_API_KEY, EMAIL_TO } = process.env;
 
-  if (!EMAIL_USER || !EMAIL_PASS) {
-    console.warn("[Email] EMAIL_USER / EMAIL_PASS missing in .env. Skipping email.");
+  if (!RESEND_API_KEY) {
+    console.warn("[Email] RESEND_API_KEY missing in .env. Skipping email.");
     return;
   }
 
   try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: EMAIL_USER, pass: EMAIL_PASS },
-    });
+    const resend = new Resend(RESEND_API_KEY);
 
-    await transporter.sendMail({
-      from: `"Portfolio Contact" <${EMAIL_USER}>`,
-      to: EMAIL_TO || EMAIL_USER,
+    // Resend free tier: 'from' must be onboarding@resend.dev unless custom domain is verified
+    const recipient = EMAIL_TO || "anandsahire8595@gmail.com";
+
+    const response = await resend.emails.send({
+      from: "Portfolio Contact <onboarding@resend.dev>",
+      to: recipient,
       replyTo: data.email,
       subject: `Portfolio: ${data.subject} (from ${data.name})`,
       text: `Name: ${data.name}\nEmail: ${data.email}\nSubject: ${data.subject}\n\n${data.message}`,
@@ -61,9 +60,9 @@ const sendNotificationEmail = async (data: {
       `,
     });
 
-    console.log("[Email] Notification sent to", EMAIL_TO || EMAIL_USER);
+    console.log("[Email] Notification sent via Resend:", response);
   } catch (err) {
-    console.error("[Email] Failed to send notification:", err);
+    console.error("[Email] Failed to send notification via Resend:", err);
   }
 };
 
@@ -119,8 +118,10 @@ export const sendMessage = async (req: Request, res: Response) => {
       savedData = memoryItem;
     }
 
-    // Email notification (does not block or break the response)
-    await sendNotificationEmail(payload);
+    // बदल: 'await' काढले आहे आणि बॅकग्राउंड एरर हँडल केली आहे
+    sendNotificationEmail(payload).catch((err) =>
+      console.error("[Email] background error:", err)
+    );
 
     return res.status(201).json({
       success: true,

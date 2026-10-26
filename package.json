@@ -1,0 +1,16 @@
+{
+  "name": "anand-portfolio-mern",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Full-Stack MERN Portfolio with Next.js 16, TypeScript, Express, MongoDB, and Tailwind CSS v3",
+  "scripts": {
+    "dev:client": "npm run dev --prefix client",
+    "dev:server": "npm run dev --prefix server",
+    "build:client": "npm run build --prefix client",
+    "build:server": "npm run build --prefix server",
+    "build": "npm run build:server && npm run build:client",
+    "seed": "npm run seed --prefix server"
+  },
+  "author": "Anand Ahire <anandsahire8595@gmail.com>",
+  "license": "MIT"
+}
